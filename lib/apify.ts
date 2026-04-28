@@ -1,8 +1,7 @@
-import { ApifyClient } from 'apify'
+// Apify REST API - 不使用 SDK，纯 fetch 调用
 
-const apifyClient = new ApifyClient({
-  token: process.env.APIFY_API_TOKEN,
-})
+const APIFY_TOKEN = process.env.APIFY_API_TOKEN
+const APIFY_BASE = 'https://api.apify.com/v2'
 
 export interface FacebookGroup {
   id: string
@@ -16,21 +15,59 @@ export interface FacebookGroup {
   hasTrading: boolean
 }
 
-export async function scrapeFacebookGroups(keywords: string[]): Promise<FacebookGroup[]> {
-  // 使用 Apify Facebook Groups Scraper
-  // https://apify.com/jeremy_ondricka/facebook-groups-scraper
+async function apifyActorStart(actorId: string, input: Record<string, any>): Promise<string> {
+  const res = await fetch(`${APIFY_BASE}/acts/${actorId}/runs`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${APIFY_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ input }),
+  })
+  const data = await res.json()
+  return data.data.id
+}
 
-  const run = await apifyClient.actor('jeremy_ondricka/facebook-groups-scraper').start({
-    keywords: keywords,
+async function apifyRunFinished(runId: string): Promise<boolean> {
+  for (let i = 0; i < 60; i++) {
+    const res = await fetch(`${APIFY_BASE}/actor-runs/${runId}`, {
+      headers: { 'Authorization': `Bearer ${APIFY_TOKEN}` },
+    })
+    const data = await res.json()
+    const status = data.data.status
+    if (status === 'SUCCEEDED') return true
+    if (status === 'FAILED' || status === 'ABORTED') return false
+    await new Promise(r => setTimeout(r, 5000))
+  }
+  return false
+}
+
+async function apifyDatasetItems(datasetId: string, limit = 100): Promise<any[]> {
+  const res = await fetch(
+    `${APIFY_BASE}/datasets/${datasetId}/items?limit=${limit}&clean=true`,
+    { headers: { 'Authorization': `Bearer ${APIFY_TOKEN}` } }
+  )
+  return res.json()
+}
+
+export async function scrapeFacebookGroups(keywords: string[]): Promise<FacebookGroup[]> {
+  const runId = await apifyActorStart('jeremy_ondricka/facebook-groups-scraper', {
+    keywords,
     limit: 50,
   })
 
-  // 等待完成
-  const dataset = await apifyClient.dataset(run.defaultDatasetId).listItems({
-    limit: 100,
-  })
+  const finished = await apifyRunFinished(runId)
+  if (!finished) throw new Error('Apify scrape failed or timed out')
 
-  const groups: FacebookGroup[] = dataset.items.map((item: any) => ({
+  const runRes = await fetch(`${APIFY_BASE}/actor-runs/${runId}`, {
+    headers: { 'Authorization': `Bearer ${APIFY_TOKEN}` },
+  })
+  const runData = await runRes.json()
+  const datasetId = runData.data.defaultDatasetId
+
+  const items = await apifyDatasetItems(datasetId, 100)
+
+  const groups: FacebookGroup[] = items.map((item: any) => ({
     id: item.groupId || item.url,
     name: item.groupName || item.name || 'Unknown',
     url: item.url || `https://facebook.com/groups/${item.groupId}`,
@@ -38,23 +75,27 @@ export async function scrapeFacebookGroups(keywords: string[]): Promise<Facebook
     lastActivity: item.lastActivity || item.lastPost || 'unknown',
     description: item.description || '',
     status: 'new' as const,
-    isAgriculture: false, // 待AI判断
-    hasTrading: false,    // 待AI判断
+    isAgriculture: false,
+    hasTrading: false,
   }))
 
   return groups
 }
 
 export async function scrapeGroupMembers(groupUrl: string): Promise<any[]> {
-  // 使用 Apify Facebook Group Members Scraper
-  const run = await apifyClient.actor('关-Wang/facebook-group-members-scraper').start({
-    groupUrl: groupUrl,
+  const runId = await apifyActorStart('关-Wang/facebook-group-members-scraper', {
+    groupUrl,
     limit: 100,
   })
 
-  const dataset = await apifyClient.dataset(run.defaultDatasetId).listItems({
-    limit: 500,
-  })
+  const finished = await apifyRunFinished(runId)
+  if (!finished) throw new Error('Apify scrape failed or timed out')
 
-  return dataset.items
+  const runRes = await fetch(`${APIFY_BASE}/actor-runs/${runId}`, {
+    headers: { 'Authorization': `Bearer ${APIFY_TOKEN}` },
+  })
+  const runData = await runRes.json()
+  const datasetId = runData.data.defaultDatasetId
+
+  return apifyDatasetItems(datasetId, 500)
 }

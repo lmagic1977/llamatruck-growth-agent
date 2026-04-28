@@ -12,7 +12,6 @@
     "next": "14.2.0",
     "react": "18.3.0",
     "react-dom": "18.3.0",
-    "apify": "^0.21.0",
     "openai": "^4.47.0",
     "googleapis": "^140.0.0",
     "recharts": "^2.12.0",

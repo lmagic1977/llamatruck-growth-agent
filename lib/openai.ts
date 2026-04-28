@@ -1,8 +1,16 @@
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+let _openai: OpenAI | null = null
+
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return _openai
+}
 
 export interface FilterResult {
   isAgriculture: boolean
@@ -16,7 +24,7 @@ export async function filterGroupWithAI(
   description: string,
   memberCount: number
 ): Promise<FilterResult> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
@@ -58,7 +66,7 @@ export async function generateDMVariations(
   groupDescription: string,
   adminName: string
 ): Promise<DMVariation[]> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
@@ -95,7 +103,7 @@ Return JSON array with:
 }
 
 export async function generatePostContent(topic: string): Promise<string> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
