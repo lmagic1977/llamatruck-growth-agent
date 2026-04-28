@@ -15,7 +15,7 @@
     "apify": "^0.21.0",
     "openai": "^4.47.0",
     "googleapis": "^140.0.0",
-    " recharts": "^2.12.0",
+    "recharts": "^2.12.0",
     "lucide-react": "^0.400.0",
     "clsx": "^2.1.0"
   },

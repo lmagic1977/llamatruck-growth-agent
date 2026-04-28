@@ -1,13 +1,1 @@
-{
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "installCommand": "npm install",
-  "regions": ["iad1"],
-  "env": {
-    "APIFY_API_TOKEN": "@apify-token",
-    "OPENAI_API_KEY": "@openai-key",
-    "GOOGLE_SERVICE_ACCOUNT_JSON": "@google-service-account",
-    "GOOGLE_SHEETS_ID": "@google-sheets-id"
-  }
-}
+{"name":"llamatrack-growth","version":2}
