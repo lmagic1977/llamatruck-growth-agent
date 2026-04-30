@@ -2,3 +2,7 @@
 node_modules/
 .next/
 .next-cache/
+
+# Environment variables (local secrets)
+.env.local
+.env.production

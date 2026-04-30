@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { scrapeFacebookGroups } from '@/lib/apify'
 import { filterGroupWithAI } from '@/lib/openai'
-import { addGroup } from '@/lib/sheets'
+import { addGroup } from '@/lib/supabase'
 
 const KEYWORDS = [
   'farmers',
@@ -35,14 +35,23 @@ export async function POST(request: NextRequest) {
       )
 
       if (aiResult.score >= 6) {
-        filteredGroups.push({
+        const groupData = {
           ...group,
           isAgriculture: aiResult.isAgriculture,
           hasTrading: aiResult.hasTrading,
-        })
+        }
+        filteredGroups.push(groupData)
 
-        // 保存到Google Sheets
-        await addGroup(group)
+        // 保存到Supabase
+        await addGroup({
+          group_name: group.name,
+          url: group.url,
+          member_count: group.memberCount,
+          last_activity: group.lastActivity,
+          description: group.description,
+          is_agriculture: aiResult.isAgriculture,
+          has_trading: aiResult.hasTrading,
+        })
       }
     }
 
